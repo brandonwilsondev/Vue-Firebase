@@ -13,7 +13,7 @@
     </v-toolbar>
     <v-card>
       <v-card-text>
-        <v-form @submit="signup" class="card-panel">
+        <v-form @submit="signup" v-model="valid" class="card-panel">
           <v-text-field
             type="Email"
             v-model="email"
@@ -25,6 +25,7 @@
             type="password"
             v-model="password"
             label="Password:"
+            :rules="[v => !!v || 'Password is required']"
             required
           ></v-text-field>
           <v-text-field
@@ -32,19 +33,22 @@
             label="Confirm Password"
             id="confirmPassword"
             type="password"
-            :rules="[comparePasswords]"
+            :rules="[v => !!v || 'Confirm Password is required', comparePasswords]"
             v-model="passwordConfirm"
           ></v-text-field>
           <v-text-field
             type="alias"
             v-model="alias"
             label="First Name:"
+            :counter="15"
+            :rules="nameRules"
             required
           ></v-text-field>
           <v-select
             v-model="specialty"
             :items="items"
             label="Specialty"
+            :rules="[v => !!v || 'Specialty is required']"
             data-vv-name="items"
             required
           ></v-select>
@@ -52,6 +56,7 @@
             v-model="experience"
             :items="experiences"
             label="Experience:"
+            :rules="[v => !!v || 'Experience is required']"
             data-vv-name="experience"
             required
           ></v-select>
@@ -59,13 +64,14 @@
             type="number"
             v-model="zip"
             label="Zip Code:"
+            :rules="zipCodeRules"
             required
           ></v-text-field>
 
           <p class="red--text text-center" v-if="feedback">{{ feedback }}</p>
           <v-card-actions class="text-center">
             <div class="flex-grow-1"></div>
-            <v-btn @click="signup" color="orange" dark tile> Submit </v-btn>
+            <v-btn :disabled="!valid" @click="signup" color="orange"> Submit </v-btn>
             <!-- <v-btn @click="signupWithGoolge" color="primary lighten-2" dark tile> Signup With Google </v-btn> -->
           </v-card-actions>
         </v-form>
@@ -91,6 +97,7 @@ export default {
   name: "SignupWorkers",
   data() {
     return {
+      valid: true,
       dialog: false,
       name: null,
       contactInfo: null,
@@ -171,6 +178,14 @@ export default {
       emailRules: [
         v => !!v || "E-mail is required",
         v => /.+@.+\..+/.test(v) || "E-mail must be valid"
+      ],
+      nameRules: [
+        v => !!v || 'First Name is required',
+        v => (v && v.length <= 15) || 'First Name must be less than 15 characters',
+      ],
+      zipCodeRules: [
+        v => !!v || 'ZIP Code is required',
+        v => (v && v.length === 5) || 'ZIP Code must be 5 digits',
       ]
     };
   },
@@ -182,86 +197,86 @@ export default {
     //     console.log(response)
     //   })
     // },
-    signup() {
-      if (
-        this.alias &&
-        this.email &&
-        this.password &&
-        this.comparePasswords === true &&
-        this.isWorker
-      ) {
-        this.slug = slugify(this.alias, {
-          replacement: "-",
-          remove: /[$*_+~.()'"!\-:@]/g,
-          lower: true
-        });
-        let ref = db.collection("users").doc(this.slug);
-        ref.get().then(doc => {
-          if (doc.exists) {
-            this.feedback = "This alias already exists";
-          } else {
-            // this alias does not yet exists in the db
-            firebase
-              .auth()
-              .createUserWithEmailAndPassword(this.email, this.password)
-              .then(cred => {
-                this.myCred = cred;
-                db.collection("users")
-                  .doc(cred.user.uid)
-                  .set({
-                    email: this.email,
-                    isWorker: this.isWorker,
-                    alias: this.alias,
-                    user_id: cred.user.uid,
-                    zip: this.zip,
-                    specialty: this.specialty,
-                    experience: this.experience,
-                    isWorkerProfile: this.isWorkerProfile
-                  });
-                db.collection("specialistProfile")
-                  .doc(cred.user.uid)
-                  .set({
-                    email: this.email,
-                    isWorker: this.isWorker,
-                    alias: this.alias,
-                    user_id: cred.user.uid,
-                    zip: this.zip,
-                    specialty: this.specialty,
-                    experience: this.experience,
-                    isWorkerProfile: this.isWorkerProfile
-                  });
-              })
+    signup() {    
+      // if (
+      //   this.alias &&
+      //   this.email &&
+      //   this.password &&
+      //   this.comparePasswords === true &&
+      //   this.isWorker
+      // ) {
+      this.slug = slugify(this.alias, {
+        replacement: "-",
+        remove: /[$*_+~.()'"!\-:@]/g,
+        lower: true
+      });
+      let ref = db.collection("users").doc(this.slug);
+      ref.get().then(doc => {
+        if (doc.exists) {
+          this.feedback = "This alias already exists";
+        } else {
+          // this alias does not yet exists in the db
+          firebase
+            .auth()
+            .createUserWithEmailAndPassword(this.email, this.password)
+            .then(cred => {
+              this.myCred = cred;
+              db.collection("users")
+                .doc(cred.user.uid)
+                .set({
+                  email: this.email,
+                  isWorker: this.isWorker,
+                  alias: this.alias,
+                  user_id: cred.user.uid,
+                  zip: this.zip,
+                  specialty: this.specialty,
+                  experience: this.experience,
+                  isWorkerProfile: this.isWorkerProfile
+                });
+              db.collection("specialistProfile")
+                .doc(cred.user.uid)
+                .set({
+                  email: this.email,
+                  isWorker: this.isWorker,
+                  alias: this.alias,
+                  user_id: cred.user.uid,
+                  zip: this.zip,
+                  specialty: this.specialty,
+                  experience: this.experience,
+                  isWorkerProfile: this.isWorkerProfile
+                });
+            })
 
-              .then(() => {
-                this.myCred.user
-                  .sendEmailVerification()
-                  .then(() => {
-                    // Go to login page and set configuration in vuex store
-                    this.$store.commit("setConfig", {
-                      sendVerify: true,
-                      newEmail: this.email,
-                      newPassword: this.password
-                    });
-                    this.$router.push({ name: "Login" });
-                  })
-                  .catch(err => {
-                    this.feedback = err.message;
+            .then(() => {
+              this.myCred.user
+                .sendEmailVerification()
+                .then(() => {
+                  // Go to login page and set configuration in vuex store
+                  this.$store.commit("setConfig", {
+                    sendVerify: true,
+                    newEmail: this.email,
+                    newPassword: this.password
                   });
-              })
-              .catch(err => {
-                this.feedback = err.message;
-              });
-          }
-        });
+                  this.$router.push({ name: "Login" });
+                })
+                .catch(err => {
+                  this.feedback = err.message;
+                });
+            })
+            .catch(err => {
+              this.feedback = err.message;
+            });
+        }
+      });
         // }
         // .then (() => {
         //   firebase
         //   .firestore()
         //   createSpecialistProfile(this.users.user_id)
         // }
-      } else {
-        this.feedback = "Please enter data in all fields";
-      }
+      // } else {
+      //   this.feedback = "Please enter data in all fields";
+      // }
     }
   },
   computed: {

@@ -175,7 +175,7 @@ export default {
             email: this.users.email,
             subscription: "sub_H7bCnnzXV0SDOd",
             id: "plan_H7BLWIvX5Bxn7s",
-            amount: 1000,
+            amount: 10,
             source: result.token,
           };
           this.saveDataToFireStore(stripeObject);
